@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Knowleful コード生成支援ツール",
+  "version": "1.0.0",
+  "description": "機密情報をマスキングしてAIコード生成を支援するツール",
+  "permissions": [
+    "activeTab",
+    "downloads",
+    "clipboardWrite"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://chat.knowleful.jp/*"],
+      "js": [
+        "src/formatter.js",
+        "src/masker.js",
+        "src/parser.js",
+        "src/prompt.js",
+        "src/ui.js",
+        "content.js"
+      ],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}

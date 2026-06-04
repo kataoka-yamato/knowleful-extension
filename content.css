@@ -1,0 +1,549 @@
+/* ランチャーボタン */
+#kw-launcher {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2147483646;
+  padding: 6px 16px;
+  background: #1a56db;
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  white-space: nowrap;
+}
+#kw-launcher:hover { background: #1e429f; }
+
+/* モーダル背景 */
+#kw-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 2147483647;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 32px 16px 40px;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+/* モーダル本体 */
+#kw-modal-inner {
+  background: #fff;
+  border-radius: 10px;
+  width: 960px;
+  max-width: 98vw;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.22);
+  display: flex;
+  flex-direction: column;
+  font-family: 'Segoe UI', 'Meiryo', sans-serif;
+  font-size: 13px;
+  color: #1f2937;
+}
+
+/* ヘッダー */
+#kw-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 18px;
+  background: #1a56db;
+  color: #fff;
+  border-radius: 10px 10px 0 0;
+  font-size: 14px;
+  font-weight: 700;
+  z-index: 10;
+}
+
+#kw-close-btn {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+#kw-close-btn:hover { opacity: 0.7; }
+
+/* ヘッダーアクション */
+.kw-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#kw-template-toggle-btn {
+  padding: 4px 12px;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.4);
+  color: #fff;
+  border-radius: 5px;
+  font-size: 12px;
+  cursor: pointer;
+}
+#kw-template-toggle-btn:hover { background: rgba(255,255,255,0.25); }
+
+/* テンプレートバー */
+#kw-template-bar {
+  background: #f8faff;
+  border-bottom: 1px solid #dbeafe;
+  padding: 10px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.kw-tmpl-main-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.kw-tmpl-spacer { flex: 1; }
+#kw-template-select {
+  flex: 0 0 220px;
+  padding: 5px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  font-size: 12px;
+}
+#kw-template-save-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0 2px;
+}
+#kw-template-name-input {
+  flex: 1;
+  max-width: 280px;
+  padding: 5px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  font-size: 13px;
+}
+#kw-template-save-form .kw-primary-btn {
+  flex: none;
+  padding: 5px 14px;
+  font-size: 12px;
+}
+#kw-template-save-form .kw-secondary-btn {
+  font-size: 12px;
+  padding: 5px 10px;
+}
+#kw-template-edit-area {
+  padding: 6px 0 2px;
+}
+.kw-tmpl-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+.kw-tmpl-name-input {
+  flex: 1;
+  max-width: 260px;
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  font-size: 12px;
+}
+.kw-tmpl-rename-btn { font-size: 12px; padding: 4px 10px; }
+.kw-tmpl-delete-btn { color: #ef4444; font-size: 12px; }
+.kw-tmpl-empty { font-size: 12px; color: #9ca3af; margin: 4px 0; }
+
+/* エクスポート/インポートパネル */
+#kw-template-io-panel {
+  padding: 10px 0 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.kw-io-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.kw-io-block-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.kw-io-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  min-width: 80px;
+}
+.kw-io-divider {
+  border: none;
+  border-top: 1px dashed #e5e7eb;
+  margin: 10px 0;
+}
+#kw-export-text, #kw-import-text {
+  font-size: 11px;
+  font-family: 'Consolas', monospace;
+  resize: vertical;
+  background: #f9fafb;
+}
+.kw-tmpl-clear-btn {
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+.kw-tmpl-clear-btn:hover { background: #fef2f2; }
+
+/* ボディ */
+#kw-modal-body {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* セクション */
+.kw-section {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.kw-section-title {
+  font-weight: 700;
+  font-size: 11px;
+  color: #6b7280;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.kw-subsection-title {
+  font-weight: 600;
+  font-size: 12px;
+  color: #374151;
+  margin-bottom: 6px;
+}
+.kw-section-hint {
+  font-weight: 400;
+  font-size: 11px;
+  color: #9ca3af;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* 区切り線 */
+.kw-divider {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 12px 0;
+}
+
+/* 秘密情報の背景色 */
+.kw-secret-bg {
+  background-color: #e3e4e6 !important;
+}
+
+/* 単一情報行 */
+.kw-single-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+  padding: 4px 6px;
+  border-radius: 5px;
+  transition: background 0.15s;
+}
+.kw-single-row input[type="text"] {
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  font-size: 13px;
+}
+.kw-single-label { flex: 0 0 160px; }
+.kw-single-value { flex: 1; }
+
+/* 複数情報ブロック */
+.kw-multi-block {
+  border: 1px solid #e5e7eb;
+  border-radius: 7px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  background: #fafafa;
+}
+.kw-multi-block-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.kw-multi-block-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  white-space: nowrap;
+  background: #e5e7eb;
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+.kw-multi-key {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* 区切り文字 */
+.kw-delimiter-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 12px;
+  flex-wrap: wrap;
+  color: #6b7280;
+}
+.kw-delimiter-row label { cursor: pointer; }
+
+/* カスタムパターン入力 */
+#kw-custom-pattern-wrap {
+  margin-top: 6px;
+}
+#kw-custom-pattern {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 12px;
+  color: #374151;
+  background: #fefce8;
+  border-color: #fde68a;
+  resize: vertical;
+}
+#kw-custom-pattern::placeholder { color: #a3a3a3; }
+
+/* テキストエリア共通 */
+textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  font-size: 12px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  resize: vertical;
+}
+textarea:focus { outline: 2px solid #1a56db; border-color: transparent; }
+
+/* テーブルラッパー（スクロール対応） */
+.kw-table-scroll-wrapper {
+  overflow-x: auto;
+  max-width: 100%;
+  margin-top: 8px;
+  border-radius: 4px;
+}
+.kw-table {
+  border-collapse: collapse;
+  font-size: 12px;
+  white-space: nowrap;
+  min-width: 100%;
+}
+.kw-table th, .kw-table td {
+  border: 1px solid #e5e7eb;
+  padding: 4px 10px;
+  text-align: left;
+}
+.kw-table thead th { background: #f9fafb; }
+.kw-col-header { font-weight: 600; color: #374151; }
+.kw-col-ctrl-row th { background: #f3f4f6; }
+
+/* select共通 */
+select {
+  padding: 3px 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 12px;
+  background: #fff;
+}
+.kw-col-secret { font-size: 11px; }
+
+/* 行レイアウト */
+.kw-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+.kw-row label {
+  min-width: 100px;
+  padding-top: 5px;
+  font-size: 12px;
+  color: #6b7280;
+  flex-shrink: 0;
+}
+.kw-row input[type="text"] {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  font-size: 13px;
+}
+.kw-row textarea { flex: 1; }
+
+/* 生成対象タグ */
+.kw-targets-row { align-items: center; flex-wrap: wrap; }
+#kw-targets-container { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+.kw-target-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 14px;
+  padding: 2px 8px;
+}
+.kw-target-input {
+  border: none !important;
+  background: transparent !important;
+  width: 70px;
+  font-size: 12px;
+  padding: 0 !important;
+  outline: none;
+}
+
+/* ページネーション */
+#kw-pagination-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid #e5e7eb;
+}
+.kw-pagination-label {
+  font-size: 12px;
+  color: #6b7280;
+  white-space: nowrap;
+}
+#kw-pagination {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.kw-page-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.kw-page-btn:hover { background: #e5e7eb; }
+.kw-page-active {
+  background: #1a56db !important;
+  color: #fff;
+  border-color: #1a56db;
+}
+.kw-page-add-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px dashed #9ca3af;
+  background: transparent;
+  font-size: 16px;
+  cursor: pointer;
+  color: #6b7280;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.kw-page-add-btn:hover { background: #f3f4f6; }
+.kw-page-remove-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid #fca5a5;
+  background: #fef2f2;
+  font-size: 14px;
+  cursor: pointer;
+  color: #dc2626;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 4px;
+}
+.kw-page-remove-btn:hover { background: #fee2e2; }
+
+/* ボタン共通 */
+.kw-primary-btn {
+  flex: 1;
+  padding: 8px 14px;
+  background: #1a56db;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.kw-primary-btn:hover { background: #1e429f; }
+
+.kw-secondary-btn {
+  padding: 6px 12px;
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.kw-secondary-btn:hover { background: #e5e7eb; }
+
+.kw-add-btn {
+  padding: 4px 10px;
+  background: #f9fafb;
+  border: 1px dashed #9ca3af;
+  border-radius: 5px;
+  font-size: 12px;
+  cursor: pointer;
+  color: #6b7280;
+  margin-top: 4px;
+}
+.kw-add-btn:hover { background: #f3f4f6; }
+
+.kw-remove-btn {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.kw-remove-btn:hover { color: #ef4444; }
+
+/* ボタンセクション */
+.kw-btn-section { display: flex; gap: 10px; }
+
+/* 出力アクション */
+.kw-output-actions { display: flex; gap: 8px; margin-top: 6px; }
+
+/* ステータス */
+.kw-status { font-size: 12px; margin-top: 6px; min-height: 18px; }
+.kw-status-success { color: #059669; }
+.kw-status-warn    { color: #d97706; }
+.kw-status-error   { color: #dc2626; }
+
+/* スクロールバー */
+#kw-modal::-webkit-scrollbar { width: 6px; }
+#kw-modal::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+.kw-table-scroll-wrapper::-webkit-scrollbar { height: 5px; }
+.kw-table-scroll-wrapper::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
