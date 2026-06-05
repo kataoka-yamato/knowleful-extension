@@ -18,7 +18,7 @@ const PromptBuilder = (() => {
 
     // ロールとタスクの明示
     lines.push(`あなたは ${language} のコード生成アシスタントです。`);
-    lines.push(`以下の定義に基づき、${targets.join('、')} を生成してください。`);
+    lines.push(`以下の定義に基づき、${(example && example.trim()) ? '出力例に従って' : ''} ${targets.join('、')} を生成してください。`);
     lines.push('');
 
     // 共通情報
