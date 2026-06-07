@@ -12,6 +12,7 @@
     {
       "matches": ["https://chat.knowleful.jp/*"],
       "js": [
+        "src/storage.js",
         "src/formatter.js",
         "src/masker.js",
         "src/parser.js",
