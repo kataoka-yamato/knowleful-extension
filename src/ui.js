@@ -386,7 +386,7 @@ const UI = (() => {
     _saveTimer = setTimeout(saveState, 500);
   }
 
-  function saveState() {
+  async function saveState() {
     saveCurrentToState();
     const state = {
       mainSingles: _mainSingles,
@@ -396,14 +396,11 @@ const UI = (() => {
       targets:     collectTargets(),
       example:     document.getElementById('kw-example')?.value || '',
     };
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) {}
+    await Storage.setItem(STORAGE_KEY, state);
   }
 
-  function loadState() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch (_) { return null; }
+  async function loadState() {
+    return await Storage.getItem(STORAGE_KEY, null);
   }
 
   // ----------------------------------------------------------------
@@ -411,22 +408,19 @@ const UI = (() => {
   // ----------------------------------------------------------------
 
   /** テンプレート一覧を localStorage から取得 */
-  function loadTemplates() {
-    try {
-      const raw = localStorage.getItem(TEMPLATE_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch (_) { return []; }
+  async function loadTemplates() {
+    return await Storage.getItem(TEMPLATE_KEY, []);
   }
 
   /** テンプレート一覧を localStorage に保存 */
-  function persistTemplates(templates) {
-    try { localStorage.setItem(TEMPLATE_KEY, JSON.stringify(templates)); } catch (_) {}
+  async function persistTemplates(templates) {
+    await Storage.setItem(TEMPLATE_KEY, templates);
   }
 
   /** 現在の入力内容をテンプレートとして保存 */
-  function saveAsTemplate(name) {
+  async function saveAsTemplate(name) {
     saveCurrentToState();
-    const templates = loadTemplates();
+    const templates = await loadTemplates();
     templates.push({
       id:   Date.now().toString(),
       name: name.trim(),
@@ -439,14 +433,14 @@ const UI = (() => {
         example:     document.getElementById('kw-example')?.value || '',
       },
     });
-    persistTemplates(templates);
-    refreshTemplateSelect();
+    await persistTemplates(templates);
+    await refreshTemplateSelect();
     showStatus(`テンプレート「${name}」を保存しました。`, 'success');
   }
 
   /** テンプレートを現在の入力内容に反映 */
-  function applyTemplate(id) {
-    const templates = loadTemplates();
+  async function applyTemplate(id) {
+    const templates = await loadTemplates();
     const tmpl = templates.find(t => t.id === id);
     if (!tmpl) return;
 
@@ -476,37 +470,37 @@ const UI = (() => {
   }
 
   /** テンプレートを削除 */
-  function deleteTemplate(id) {
-    const templates = loadTemplates().filter(t => t.id !== id);
-    persistTemplates(templates);
-    refreshTemplateSelect();
-    renderTemplateEditArea();
+  async function deleteTemplate(id) {
+    const templates = (await loadTemplates()).filter(t => t.id !== id);
+    await persistTemplates(templates);
+    await refreshTemplateSelect();
+    await renderTemplateEditArea();
   }
 
   /** テンプレート名を変更 */
-  function renameTemplate(id, newName) {
-    const templates = loadTemplates().map(t => t.id === id ? { ...t, name: newName.trim() } : t);
-    persistTemplates(templates);
-    refreshTemplateSelect();
-    renderTemplateEditArea();
+  async function renameTemplate(id, newName) {
+    const templates = (await loadTemplates()).map(t => t.id === id ? { ...t, name: newName.trim() } : t);
+    await persistTemplates(templates);
+    await refreshTemplateSelect();
+    await renderTemplateEditArea();
   }
 
   /** テンプレート選択ドロップダウンを更新 */
-  function refreshTemplateSelect() {
+  async function refreshTemplateSelect() {
     const sel = document.getElementById('kw-template-select');
     if (!sel) return;
     const current = sel.value;
-    const templates = loadTemplates();
+    const templates = await loadTemplates();
     sel.innerHTML = '<option value="">-- テンプレートを選択 --</option>'
       + templates.map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)}</option>`).join('');
     if (templates.find(t => t.id === current)) sel.value = current;
   }
 
   /** テンプレート編集エリアを再描画 */
-  function renderTemplateEditArea() {
+  async function renderTemplateEditArea() {
     const area = document.getElementById('kw-template-edit-area');
     if (!area || area.style.display === 'none') return;
-    const templates = loadTemplates();
+    const templates = await loadTemplates();
     if (templates.length === 0) {
       area.innerHTML = '<p class="kw-tmpl-empty">保存済みテンプレートはありません。</p>';
       return;
@@ -520,20 +514,21 @@ const UI = (() => {
     `).join('');
 
     area.querySelectorAll('.kw-tmpl-rename-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', async () => {
         const row = btn.closest('.kw-tmpl-edit-row');
         const newName = row.querySelector('.kw-tmpl-name-input').value.trim();
         if (!newName) { showStatus('テンプレート名を入力してください。', 'warn'); return; }
-        renameTemplate(row.dataset.id, newName);
+        await renameTemplate(row.dataset.id, newName);
         showStatus('名称を変更しました。', 'success');
       });
     });
     area.querySelectorAll('.kw-tmpl-delete-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', async () => {
         const row = btn.closest('.kw-tmpl-edit-row');
-        const tmpl = loadTemplates().find(t => t.id === row.dataset.id);
+        const templates = await loadTemplates();
+        const tmpl = templates.find(t => t.id === row.dataset.id);
         if (!confirm(`テンプレート「${tmpl?.name}」を削除しますか？`)) return;
-        deleteTemplate(row.dataset.id);
+        await deleteTemplate(row.dataset.id);
         showStatus('テンプレートを削除しました。', 'success');
       });
     });
@@ -707,11 +702,11 @@ const UI = (() => {
   // ----------------------------------------------------------------
   // 初期化
   // ----------------------------------------------------------------
-  function init() {
+  async function init() {
     _modal = createModal();
     document.body.appendChild(_modal);
 
-    const saved = loadState();
+    const saved = await loadState();
 
     // メイン単一情報復元
     _mainSingles = saved?.mainSingles ?? [];
@@ -739,7 +734,7 @@ const UI = (() => {
     // ---- イベント登録 ----
 
     // テンプレートバー初期化
-    refreshTemplateSelect();
+    await refreshTemplateSelect();
     document.getElementById('kw-template-bar').style.display = 'none';
     document.getElementById('kw-template-save-form').style.display = 'none';
     document.getElementById('kw-template-edit-area').style.display = 'none';
@@ -751,11 +746,11 @@ const UI = (() => {
     });
 
     // テンプレート反映
-    document.getElementById('kw-template-apply-btn').addEventListener('click', () => {
+    document.getElementById('kw-template-apply-btn').addEventListener('click', async () => {
       const id = document.getElementById('kw-template-select').value;
       if (!id) { showStatus('テンプレートを選択してください。', 'warn'); return; }
       if (!confirm('現在の入力内容をテンプレートの内容で上書きします。よろしいですか？')) return;
-      applyTemplate(id);
+      await applyTemplate(id);
     });
 
     // テンプレートとして保存ボタン
@@ -772,10 +767,10 @@ const UI = (() => {
     });
 
     // 保存確定
-    document.getElementById('kw-template-save-confirm').addEventListener('click', () => {
+    document.getElementById('kw-template-save-confirm').addEventListener('click', async () => {
       const name = document.getElementById('kw-template-name-input').value.trim();
       if (!name) { showStatus('テンプレート名を入力してください。', 'warn'); return; }
-      saveAsTemplate(name);
+      await saveAsTemplate(name);
       document.getElementById('kw-template-name-input').value = '';
       document.getElementById('kw-template-save-form').style.display = 'none';
     });
@@ -824,8 +819,8 @@ const UI = (() => {
     });
 
     // エクスポート
-    document.getElementById('kw-export-btn').addEventListener('click', () => {
-      const templates = loadTemplates();
+    document.getElementById('kw-export-btn').addEventListener('click', async () => {
+      const templates = await loadTemplates();
       document.getElementById('kw-export-text').value = JSON.stringify(templates, null, 2);
       showStatus(`${templates.length}件のテンプレートをエクスポートしました。`, 'success');
     });
@@ -838,7 +833,7 @@ const UI = (() => {
     });
 
     // インポート
-    document.getElementById('kw-import-btn').addEventListener('click', () => {
+    document.getElementById('kw-import-btn').addEventListener('click', async () => {
       const raw = document.getElementById('kw-import-text').value.trim();
       if (!raw) { showStatus('JSONを入力してください。', 'warn'); return; }
       let imported;
@@ -853,7 +848,7 @@ const UI = (() => {
       const valid = imported.filter(t => t.id && t.name && t.data);
       if (valid.length === 0) { showStatus('有効なテンプレートが見つかりませんでした。', 'warn'); return; }
 
-      const existing = loadTemplates();
+      const existing = await loadTemplates();
       const existingIds = new Set(existing.map(t => t.id));
       // 同じIDは上書き、新規は追加
       const merged = [...existing];
@@ -868,14 +863,14 @@ const UI = (() => {
           added++;
         }
       });
-      persistTemplates(merged);
-      refreshTemplateSelect();
+      await persistTemplates(merged);
+      await refreshTemplateSelect();
       document.getElementById('kw-import-text').value = '';
       showStatus(`インポート完了：新規 ${added}件、更新 ${updated}件`, 'success');
     });
 
     // テンプレート編集ボタン
-    document.getElementById('kw-template-edit-btn').addEventListener('click', () => {
+    document.getElementById('kw-template-edit-btn').addEventListener('click', async () => {
       const editArea = document.getElementById('kw-template-edit-area');
       const form = document.getElementById('kw-template-save-form');
       const ioPanel = document.getElementById('kw-template-io-panel');
@@ -883,7 +878,7 @@ const UI = (() => {
       ioPanel.style.display = 'none';
       const next = editArea.style.display === 'none' ? 'block' : 'none';
       editArea.style.display = next;
-      if (next === 'block') renderTemplateEditArea();
+      if (next === 'block') await renderTemplateEditArea();
     });
 
     document.getElementById('kw-close-btn').addEventListener('click', () => {
