@@ -330,9 +330,11 @@ const UI = (() => {
     const chatInput = findChatInput();
     if (chatInput) {
       setInputValue(chatInput, prompt);
+      markMaskingDone();
       showStatus('プロンプトをチャット入力欄に転記しました。内容を確認して送信してください。', 'success');
     } else {
       navigator.clipboard.writeText(prompt).then(() => {
+        markMaskingDone();
         showStatus('チャット入力欄が見つかりませんでした。クリップボードにコピーしました。', 'warn');
       });
     }
@@ -345,6 +347,7 @@ const UI = (() => {
     const latestAnswer = getLatestChatAnswer();
     if (!latestAnswer) { showStatus('チャットの回答が見つかりませんでした。', 'error'); return; }
     document.getElementById('kw-output').value = Masker.unmask(latestAnswer);
+    clearMaskingPending();
     showStatus('復元完了しました。', 'success');
   }
 
@@ -547,8 +550,11 @@ const UI = (() => {
 
   function escapeHtml(str) {
     return String(str ?? '')
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   // ----------------------------------------------------------------
@@ -845,7 +851,14 @@ const UI = (() => {
       if (!Array.isArray(imported)) {
         showStatus('テンプレートの配列形式である必要があります。', 'error'); return;
       }
-      const valid = imported.filter(t => t.id && t.name && t.data);
+      // 型・長さ・文字種を厳格に検証する
+      const TEMPLATE_ID_RE   = /^[\w\-]{1,64}$/;
+      const TEMPLATE_NAME_MAX = 100;
+      const valid = imported.filter(t =>
+        typeof t.id   === 'string' && TEMPLATE_ID_RE.test(t.id) &&
+        typeof t.name === 'string' && t.name.trim().length > 0 && t.name.length <= TEMPLATE_NAME_MAX &&
+        t.data !== null && typeof t.data === 'object' && !Array.isArray(t.data)
+      );
       if (valid.length === 0) { showStatus('有効なテンプレートが見つかりませんでした。', 'warn'); return; }
 
       const existing = await loadTemplates();
@@ -969,5 +982,27 @@ const UI = (() => {
   function show() { _modal.style.display = 'flex'; }
   function hide() { if (_modal) _modal.style.display = 'none'; }
 
-  return { init, show, hide };
+  let _maskedAndPending = false; // マスキング済みでアンマスキング前の状態
+
+  /** マスキング実行後にフラグを立て、リロード時に警告する */
+  function markMaskingDone() {
+    _maskedAndPending = true;
+    window.addEventListener('beforeunload', beforeUnloadHandler);
+  }
+
+  /** アンマスキング完了またはリセット時にフラグを解除する */
+  function clearMaskingPending() {
+    _maskedAndPending = false;
+    window.removeEventListener('beforeunload', beforeUnloadHandler);
+  }
+
+  function beforeUnloadHandler(e) {
+    if (_maskedAndPending) {
+      e.preventDefault();
+      // Chrome では returnValue を設定する必要がある
+      e.returnValue = 'マスキング済みのデータが残っています。ページを離れると復元できなくなります。';
+    }
+  }
+
+  return { init, show, hide, markMaskingDone, clearMaskingPending };
 })();

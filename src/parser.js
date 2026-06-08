@@ -25,6 +25,38 @@ const Parser = (() => {
     return { headers, rows };
   }
 
+  /** パターン文字列の最大長 */
+  const PATTERN_MAX_LEN = 500;
+
+  /**
+   * ReDoS を引き起こす可能性のある危険な量指定子パターンを検出する
+   * 例: (a+)+, (a*)+, (a+)*, (a|aa)+ など
+   * @param {string} pattern
+   * @returns {boolean} 危険なパターンが含まれる場合 true
+   */
+  function hasDangerousQuantifier(pattern) {
+    // ネストされた量指定子 (X+)+ / (X*)+ / (X+)* / (X*)* など
+    if (/\([^)]*[+*][^)]*\)[+*?]/.test(pattern)) return true;
+    // 交替を含む量指定子の繰り返し (a|aa)+ など
+    if (/\([^)]*\|[^)]*\)[+*]/.test(pattern)) return true;
+    return false;
+  }
+
+  /**
+   * カスタムパターンの安全性を検証する
+   * @param {string} pattern
+   * @returns {{ ok: boolean, reason?: string }}
+   */
+  function validatePattern(pattern) {
+    if (pattern.length > PATTERN_MAX_LEN) {
+      return { ok: false, reason: `パターンが長すぎます（上限 ${PATTERN_MAX_LEN} 文字）` };
+    }
+    if (hasDangerousQuantifier(pattern)) {
+      return { ok: false, reason: 'ネストされた繰り返し量指定子は使用できません' };
+    }
+    return { ok: true };
+  }
+
   /**
    * カスタムパターンでテキストを解析する
    *
@@ -37,6 +69,13 @@ const Parser = (() => {
    */
   function parseCustom(text, pattern) {
     if (!text.trim() || !pattern.trim()) return null;
+
+    // パターンの安全性チェック
+    const validation = validatePattern(pattern);
+    if (!validation.ok) {
+      console.warn('[Parser] unsafe pattern rejected:', validation.reason);
+      return null;
+    }
 
     const fieldNames = [];
     const separators = [];
