@@ -234,6 +234,7 @@
 
 /* セクション */
 .kw-section {
+  background-color: #eee;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   padding: 12px 14px;
@@ -269,7 +270,7 @@
 
 /* 秘密情報の背景色 */
 .kw-secret-bg {
-  background-color: #e3e4e6 !important;
+  background-color: #aaa !important;
 }
 
 /* 単一情報行 */
@@ -547,7 +548,7 @@ select {
 .kw-remove-btn {
   background: transparent;
   border: none;
-  color: #9ca3af;
+  color: #333;
   font-size: 14px;
   cursor: pointer;
   padding: 0 2px;

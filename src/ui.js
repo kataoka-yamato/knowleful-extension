@@ -20,10 +20,6 @@ const UI = (() => {
   let _activeIdx = 0;
   let _saveTimer = null;
 
-  const CIRCLE_NUMS = [
-    '①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩',
-    '⑪','⑫','⑬','⑭','⑮','⑯','⑰','⑱','⑲','⑳',
-  ];
   const STORAGE_KEY   = 'kw_tool_state_v3';
   const TEMPLATE_KEY  = 'kw_templates';
 
@@ -154,7 +150,7 @@ const UI = (() => {
     _datasets.forEach((_, i) => {
       const btn = document.createElement('button');
       btn.className = 'kw-page-btn' + (i === _activeIdx ? ' kw-page-active' : '');
-      btn.textContent = CIRCLE_NUMS[i] || String(i + 1);
+      btn.textContent = String(i + 1);
       btn.title = `データ ${i + 1}`;
       btn.addEventListener('click', () => switchDataset(i));
       container.appendChild(btn);
