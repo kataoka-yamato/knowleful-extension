@@ -27,6 +27,9 @@ const UI = (() => {
   const STORAGE_KEY   = 'kw_tool_state_v3';
   const TEMPLATE_KEY  = 'kw_templates';
 
+  const DEFAULT_GENERATE_LANGUAGE = ''; // 例: Java/Spring Boot
+  const DEFAULT_GENERATE_TARGET = ['']; // 例：['Entity', 'Dao', 'Repository', 'Service']
+
   // ----------------------------------------------------------------
   // データセット管理
   // ----------------------------------------------------------------
@@ -465,7 +468,7 @@ const UI = (() => {
     if (d.language) document.getElementById('kw-language').value = d.language;
     const targetsContainer = document.getElementById('kw-targets-container');
     targetsContainer.innerHTML = '';
-    (d.targets?.length > 0 ? d.targets : ['Entity', 'DAO', 'Service']).forEach(t => addTarget(t));
+    (d.targets?.length > 0 ? d.targets : DEFAULT_GENERATE_TARGET).forEach(t => addTarget(t));
     if (d.example != null) document.getElementById('kw-example').value = d.example;
 
     debouncedSave();
@@ -734,7 +737,7 @@ const UI = (() => {
     if (saved?.targets?.length > 0) {
       saved.targets.forEach(t => addTarget(t));
     } else {
-      ['Entity', 'DAO', 'Service'].forEach(t => addTarget(t));
+      DEFAULT_GENERATE_TARGET.forEach(t => addTarget(t));
     }
     if (saved?.language) document.getElementById('kw-language').value = saved.language;
     if (saved?.example)  document.getElementById('kw-example').value  = saved.example;
@@ -803,9 +806,9 @@ const UI = (() => {
       renderDataset();
 
       // 生成設定リセット
-      document.getElementById('kw-language').value = 'Java / Spring Boot';
+      document.getElementById('kw-language').value = DEFAULT_GENERATE_LANGUAGE;
       document.getElementById('kw-targets-container').innerHTML = '';
-      ['Entity', 'DAO', 'Service'].forEach(t => addTarget(t));
+      DEFAULT_GENERATE_TARGET.forEach(t => addTarget(t));
       document.getElementById('kw-example').value = '';
 
       // 出力欄リセット
