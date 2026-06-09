@@ -597,10 +597,12 @@ const UI = (() => {
             <div class="kw-io-block">
               <div class="kw-io-block-header">
                 <span class="kw-io-label">エクスポート</span>
+                <button class="kw-secondary-btn" id="kw-export-select-all-btn">すべて選択</button>
                 <button class="kw-secondary-btn" id="kw-export-btn">JSONを生成</button>
                 <button class="kw-secondary-btn" id="kw-export-copy-btn">コピー</button>
               </div>
-              <textarea id="kw-export-text" rows="3" readonly placeholder="「JSONを生成」を押すと保存済みテンプレートのJSONが表示されます"></textarea>
+              <div id="kw-export-checklist"></div>
+              <textarea id="kw-export-text" rows="3" readonly placeholder="エクスポートするテンプレートを選択して「JSONを生成」を押してください"></textarea>
             </div>
             <div class="kw-io-divider"></div>
             <div class="kw-io-block">
@@ -815,20 +817,54 @@ const UI = (() => {
 
     // エクスポート/インポートパネルトグル
     document.getElementById('kw-template-io-panel').style.display = 'none';
-    document.getElementById('kw-template-io-btn').addEventListener('click', () => {
+    document.getElementById('kw-template-io-btn').addEventListener('click', async () => {
       const panel   = document.getElementById('kw-template-io-panel');
       const editArea = document.getElementById('kw-template-edit-area');
       const saveForm = document.getElementById('kw-template-save-form');
       editArea.style.display = 'none';
       saveForm.style.display = 'none';
-      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+      const next = panel.style.display === 'none' ? 'block' : 'none';
+      panel.style.display = next;
+      if (next === 'block') await renderExportChecklist();
+    });
+
+    // エクスポート：パネル表示時にチェックリストを描画する
+    async function renderExportChecklist() {
+      const container = document.getElementById('kw-export-checklist');
+      if (!container) return;
+      const templates = await loadTemplates();
+      if (templates.length === 0) {
+        container.innerHTML = '<p class="kw-tmpl-empty">保存済みテンプレートはありません。</p>';
+        return;
+      }
+      container.innerHTML = templates.map(t => `
+        <label class="kw-export-check-row">
+          <input type="checkbox" class="kw-export-checkbox" value="${escapeHtml(t.id)}" checked>
+          <span>${escapeHtml(t.name)}</span>
+        </label>
+      `).join('');
+    }
+
+    // すべて選択 / すべて解除トグル
+    document.getElementById('kw-export-select-all-btn').addEventListener('click', () => {
+      const checkboxes = document.querySelectorAll('.kw-export-checkbox');
+      const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+      checkboxes.forEach(cb => { cb.checked = !allChecked; });
+      document.getElementById('kw-export-select-all-btn').textContent = allChecked ? 'すべて選択' : 'すべて解除';
     });
 
     // エクスポート
     document.getElementById('kw-export-btn').addEventListener('click', async () => {
+      const selectedIds = new Set(
+        Array.from(document.querySelectorAll('.kw-export-checkbox:checked')).map(cb => cb.value)
+      );
+      if (selectedIds.size === 0) {
+        showStatus('エクスポートするテンプレートを1件以上選択してください。', 'warn'); return;
+      }
       const templates = await loadTemplates();
-      document.getElementById('kw-export-text').value = JSON.stringify(templates, null, 2);
-      showStatus(`${templates.length}件のテンプレートをエクスポートしました。`, 'success');
+      const selected = templates.filter(t => selectedIds.has(t.id));
+      document.getElementById('kw-export-text').value = JSON.stringify(selected, null, 2);
+      showStatus(`${selected.length}件のテンプレートをエクスポートしました。`, 'success');
     });
 
     // エクスポートコピー
