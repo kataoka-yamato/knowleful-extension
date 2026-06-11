@@ -23,6 +23,8 @@ const UI = (() => {
   const STORAGE_KEY   = 'kw_tool_state_v3';
   const TEMPLATE_KEY  = 'kw_templates';
 
+  const SVG_ICON_TRASH = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hover:opacity-50" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="radix-_r_1fh_" data-state="closed"><path d="M4 7l16 0"></path><path d="M10 11l0 6"></path><path d="M14 11l0 6"></path><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"></path><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"></path></svg>'
+
   const DEFAULT_GENERATE_LANGUAGE = ''; // 例: Java/Spring Boot
   const DEFAULT_GENERATE_TARGET = ['']; // 例：['Entity', 'Dao', 'Repository', 'Service']
 
@@ -166,7 +168,8 @@ const UI = (() => {
     if (_datasets.length > 1) {
       const rmBtn = document.createElement('button');
       rmBtn.className = 'kw-page-remove-btn';
-      rmBtn.textContent = '−';
+      // rmBtn.textContent = '−';
+      rmBtn.innerHTML = SVG_ICON_TRASH;
       rmBtn.title = '現在のデータを削除';
       rmBtn.addEventListener('click', removeCurrentDataset);
       container.appendChild(rmBtn);
@@ -188,7 +191,9 @@ const UI = (() => {
         <option value="secret" ${isSecret ? 'selected' : ''}>秘密</option>
         <option value="public" ${!isSecret ? 'selected' : ''}>公開</option>
       </select>
-      <button class="kw-remove-btn" title="削除">−</button>
+      <button class="kw-remove-btn" title="削除">
+        ${SVG_ICON_TRASH}
+      </button>
     `;
     row.querySelector('.kw-single-secret').addEventListener('change', e => {
       row.classList.toggle('kw-secret-bg', e.target.value === 'secret');
@@ -670,7 +675,7 @@ const UI = (() => {
             <div class="kw-section-title">生成設定</div>
             <div class="kw-row">
               <label>言語 / FW：</label>
-              <input type="text" id="kw-language" placeholder="例: Java / Spring Boot" value="Java / Spring Boot">
+              <input type="text" id="kw-language" placeholder="例: Java / Spring Boot" value="">
             </div>
             <div class="kw-row kw-targets-row">
               <label>生成対象：</label>
@@ -734,6 +739,7 @@ const UI = (() => {
       saved.targets.forEach(t => addTarget(t));
     } else {
       DEFAULT_GENERATE_TARGET.forEach(t => addTarget(t));
+      document.getElementById("kw-language").value = DEFAULT_GENERATE_LANGUAGE;
     }
     if (saved?.language) document.getElementById('kw-language').value = saved.language;
     if (saved?.example)  document.getElementById('kw-example').value  = saved.example;

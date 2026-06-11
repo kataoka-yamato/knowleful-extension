@@ -1,7 +1,7 @@
 /* ランチャーボタン */
 #kw-launcher {
   position: fixed;
-  top: 12px;
+  top: 10px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 2147483646;
@@ -270,7 +270,7 @@
 
 /* 秘密情報の背景色 */
 .kw-secret-bg {
-  background-color: #aaa !important;
+  background-color: #ccc !important;
 }
 
 /* 単一情報行 */
