@@ -8,6 +8,9 @@
     "downloads",
     "clipboardWrite"
   ],
+  "host_permissions": [
+    "https://kataoka-yamato.github.io/knowleful-extension/version.json"
+  ],
   "content_scripts": [
     {
       "matches": ["https://chat.knowleful.jp/*"],
@@ -18,6 +21,7 @@
         "src/parser.js",
         "src/prompt.js",
         "src/ui.js",
+        "src/update-notifier.js",
         "content.js"
       ],
       "css": ["content.css"],
