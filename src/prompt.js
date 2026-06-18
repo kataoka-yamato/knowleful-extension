@@ -14,11 +14,13 @@ const PromptBuilder = (() => {
    * @param {string}   params.example
    */
   function build({ maskedMainSingles, maskedDatasets, language, targets, example }) {
+    language = language ? language.trim() : '';
+    example = example ? example.trim() : '';
     const lines = [];
 
     // ロールとタスクの明示
-    lines.push(`あなたは ${language} のコード生成アシスタントです。`);
-    lines.push(`以下の定義に基づき、${(example && example.trim()) ? '出力例に従って' : ''} ${targets.join('、')} を生成してください。`);
+    lines.push(`あなたは ${ language ? language : 'プロ'} のコード生成アシスタントです。`);
+    lines.push(`以下の定義に基づき、${ example ? '出力例に従って' : ''} ${(targets.length > 0) ? targets.join('、') : 'コード断片'} を生成してください。`);
     lines.push('');
 
     // 共通情報
@@ -79,9 +81,9 @@ const PromptBuilder = (() => {
     lines.push('');
 
     // 出力例
-    if (example && example.trim()) {
+    if (example) {
       lines.push('## 出力例');
-      lines.push(example.trim());
+      lines.push(example);
       lines.push('');
     }
 

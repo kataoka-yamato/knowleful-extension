@@ -274,9 +274,9 @@ const UI = (() => {
     saveCurrentToState();
     Masker.reset();
 
-    const language = document.getElementById('kw-language').value.trim() || '（言語未指定）';
+    const language = document.getElementById('kw-language').value.trim();
     const targets  = collectTargets();
-    const example  = document.getElementById('kw-example').value;
+    const example  = document.getElementById('kw-example').value.trim();
 
     // メイン単一情報マスク
     const maskedMainSingles = _mainSingles
