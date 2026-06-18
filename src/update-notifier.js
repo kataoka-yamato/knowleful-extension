@@ -8,7 +8,7 @@
 const UpdateNotifier = (() => {
   'use strict';
 
-  const VERSION_URL     = 'https://kataoka-yamato.github.io/knowleful-extension/docs/version.json';
+  const VERSION_URL     = 'https://kataoka-yamato.github.io/knowleful-extension/version.json';
   const STORAGE_KEY     = 'kw_last_seen_major';
   const BANNER_ID       = 'kw-update-banner';
   const RELEASE_URL     = 'https://github.com/kataoka-yamato/knowleful-extension/releases';
@@ -62,7 +62,7 @@ const UpdateNotifier = (() => {
     banner.innerHTML = `
       <span class="kw-update-icon">🎉</span>
       <span class="kw-update-message">
-        <strong>knowleful v${major}.0 にアップデートされました</strong>
+        <strong>ツールが v${major}.0 にアップデートされました</strong>
         &nbsp;—&nbsp;${escapeHtml(message)}
       </span>
       <a class="kw-update-link" href="${RELEASE_URL}" target="_blank" rel="noopener noreferrer">
@@ -76,7 +76,14 @@ const UpdateNotifier = (() => {
       saveLastSeenMajor(major);
     });
 
-    document.body.appendChild(banner);
+    // モーダル内先頭に挿入。モーダルがまだなければ body に保留し、
+    // injectIntoModal() で後から差し込む。
+    const modalInner = document.getElementById('kw-modal-inner');
+    if (modalInner) {
+      modalInner.insertBefore(banner, modalInner.firstChild);
+    } else {
+      document.body.appendChild(banner);
+    }
   }
 
   /**
@@ -110,6 +117,14 @@ const UpdateNotifier = (() => {
 
       if (!Number.isFinite(remoteMajor) || remoteMajor <= 0) return;
 
+      const raw = localStorage.getItem(STORAGE_KEY);
+
+      // 初回インストール時（未記録）は通知せず現在のバージョンを保存して終了
+      if (raw === null) {
+        saveLastSeenMajor(remoteMajor);
+        return;
+      }
+
       const lastSeen = getLastSeenMajor();
       if (remoteMajor > lastSeen) {
         showBanner(remoteMajor, message);
@@ -120,5 +135,18 @@ const UpdateNotifier = (() => {
     }
   }
 
-  return { check };
+  /**
+   * バナーが body に保留されている場合、モーダル内先頭に移動する。
+   * UI.show() 呼び出し後に content.js から呼ぶ。
+   */
+  function injectIntoModal() {
+    const banner = document.getElementById(BANNER_ID);
+    if (!banner) return;
+    const modalInner = document.getElementById('kw-modal-inner');
+    if (modalInner && banner.parentElement !== modalInner) {
+      modalInner.insertBefore(banner, modalInner.firstChild);
+    }
+  }
+
+  return { check, injectIntoModal };
 })();

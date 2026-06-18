@@ -16,6 +16,8 @@
 
   launcher.addEventListener('click', () => {
     UI.show();
+    // バナーがbodyに保留されていればモーダル内に移動
+    UpdateNotifier.injectIntoModal();
   });
 
   // モーダルを初期化（非表示状態で生成）

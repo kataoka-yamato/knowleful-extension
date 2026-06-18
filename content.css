@@ -28,7 +28,7 @@
   align-items: flex-start;
   justify-content: center;
   padding: 32px 16px 40px;
-  overflow-y: auto;
+  overflow: hidden;
   box-sizing: border-box;
 }
 
@@ -38,9 +38,11 @@
   border-radius: 10px;
   width: 960px;
   max-width: 98vw;
+  max-height: calc(100vh - 72px); /* 上下padding(32px+40px)分を引いた最大高さ */
   box-shadow: 0 8px 32px rgba(0,0,0,0.22);
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
   font-family: 'Segoe UI', 'Meiryo', sans-serif;
   font-size: 13px;
   color: #1f2937;
@@ -574,3 +576,55 @@ select {
 #kw-modal::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
 .kw-table-scroll-wrapper::-webkit-scrollbar { height: 5px; }
 .kw-table-scroll-wrapper::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+
+/* ===== アップデート通知バナー ===== */
+#kw-update-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 18px;
+  background: #f3f4f6;
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+  font-family: 'Segoe UI', 'Meiryo', sans-serif;
+  font-size: 12px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+#kw-update-banner .kw-update-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+#kw-update-banner .kw-update-message {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#kw-update-banner .kw-update-link {
+  flex-shrink: 0;
+  color: #1a56db;
+  text-decoration: underline;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+#kw-update-banner .kw-update-link:hover {
+  color: #1e429f;
+}
+
+#kw-update-banner .kw-update-close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+}
+#kw-update-banner .kw-update-close:hover {
+  color: #374151;
+}
