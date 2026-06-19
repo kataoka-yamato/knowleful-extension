@@ -106,7 +106,16 @@ const Parser = (() => {
     let regexStr = '';
     separators.forEach((sep, i) => {
       regexStr += sepToRegex(sep);
-      if (i < fieldNames.length) regexStr += '([^\\n\\r]+)';
+      if (i < fieldNames.length) {
+        const nextSep = separators[i + 1] ?? '';
+        const nextTrimmed = nextSep.split('\n').map(l => l.trim()).filter(Boolean).join('');
+        // 次セパレータがスペースのみ（単語区切り）→ 空白を含まない単語にマッチ
+        if (/^\s+$/.test(nextSep) && nextTrimmed === '') {
+          regexStr += '(\\S+)';
+        } else {
+          regexStr += '([^\\n\\r]+?)';
+        }
+      }
     });
 
     let regex;
