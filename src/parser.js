@@ -112,6 +112,9 @@ const Parser = (() => {
         // 次セパレータがスペースのみ（単語区切り）→ 空白を含まない単語にマッチ
         if (/^\s+$/.test(nextSep) && nextTrimmed === '') {
           regexStr += '(\\S+)';
+        } else if (nextTrimmed === '') {
+          // 次セパレータが空白のみ（セマンティックに空）の場合、末尾まで貪欲にマッチ
+          regexStr += '([^\\n\\r]*)';
         } else {
           regexStr += '([^\\n\\r]+?)';
         }
@@ -123,7 +126,16 @@ const Parser = (() => {
 
     const rows = [];
     let match;
+    let lastIndex = -1;
     while ((match = regex.exec(text)) !== null) {
+      // 無限ループ防止：空マッチで lastIndex が進まない場合
+      if (regex.lastIndex === lastIndex) {
+        regex.lastIndex++;
+        if (regex.lastIndex > text.length) break;
+        continue;
+      }
+      lastIndex = regex.lastIndex;
+      
       const row = fieldNames.map((_, i) => (match[i + 1] ?? '').trim());
       if (row.some(v => v)) rows.push(row);
     }
