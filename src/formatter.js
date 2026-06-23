@@ -11,7 +11,8 @@ const Formatter = (() => {
     }
     // キャメル/パスカル分割
     return str
-      .replace(/([A-Z])/g, '_$1')
+      .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')  // 例: "RESULTId" → "RESULT_Id"
+      .replace(/([a-z\d])([A-Z])/g, '$1_$2')        // 例: "userId"   → "user_Id"
       .toLowerCase()
       .split('_')
       .filter(Boolean);

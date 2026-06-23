@@ -4,11 +4,13 @@
  * データ構造:
  *   _mainSingles: Array<{label, value, secret}>   // 全ページ共通
  *   _datasets: Array<{                            // ページネーションで切替
- *     key:        string,                         // テーブル名
- *     text:       string,
- *     delimiter:  string,
- *     secretCols: boolean[],
- *     parsedData: object|null,
+ *     tables: Array<{                             // 複数情報（テーブルを複数保持可）
+ *       key:        string,                       // テーブル名
+ *       text:       string,
+ *       delimiter:  string,
+ *       secretCols: boolean[],
+ *       parsedData: object|null,
+ *     }>,
  *     singles:    Array<{label, value, secret}>   // サブ単一情報
  *   }>
  *   _activeIdx: number
@@ -31,8 +33,28 @@ const UI = (() => {
   // ----------------------------------------------------------------
   // データセット管理
   // ----------------------------------------------------------------
+  function createTable() {
+    return { key: '', text: '', delimiter: 'tab', customPattern: '', secretCols: [], parsedData: null };
+  }
+
   function createDataset() {
-    return { key: '', text: '', delimiter: 'tab', customPattern: '', secretCols: [], parsedData: null, singles: [] };
+    return { tables: [createTable()], singles: [] };
+  }
+
+  /** 旧形式（テーブル1件をデータセットに直接保持）のデータセットを新形式に変換する */
+  function normalizeDataset(ds) {
+    if (ds.tables) return ds;
+    return {
+      tables: [{
+        key:           ds.key ?? '',
+        text:          ds.text ?? '',
+        delimiter:     ds.delimiter ?? 'tab',
+        customPattern: ds.customPattern ?? '',
+        secretCols:    ds.secretCols ?? [],
+        parsedData:    ds.parsedData ?? null,
+      }],
+      singles: ds.singles ?? [],
+    };
   }
 
   /** 現在のDOM状態を _datasets[_activeIdx] とメイン単一情報に保存 */
@@ -45,19 +67,23 @@ const UI = (() => {
     // 現在のデータセット
     const ds = _datasets[_activeIdx];
     if (!ds) return;
-    ds.key       = document.getElementById('kw-multi-key')?.value ?? '';
-    ds.text      = document.getElementById('kw-multi-input')?.value ?? '';
-    ds.delimiter      = document.querySelector('input[name="kw-delim"]:checked')?.value || 'tab';
-    ds.customPattern  = document.getElementById('kw-custom-pattern')?.value ?? '';
-    ds.secretCols = Array.from(document.querySelectorAll('.kw-col-secret')).map(s => s.value === 'secret');
-    ds.singles   = collectSinglesFrom('kw-sub-singles-container');
-    if (ds.text.trim()) {
-      ds.parsedData = ds.delimiter === 'custom'
-        ? Parser.parseCustom(ds.text, ds.customPattern)
-        : Parser.parse(ds.text, ds.delimiter);
-    } else {
-      ds.parsedData = null;
-    }
+    ds.tables  = collectTablesFromDom();
+    ds.singles = collectSinglesFrom('kw-sub-singles-container');
+  }
+
+  function collectTablesFromDom() {
+    const blocks = Array.from(document.querySelectorAll('#kw-multi-blocks-container .kw-multi-block'));
+    return blocks.map(block => {
+      const key           = block.querySelector('.kw-multi-key')?.value ?? '';
+      const text          = block.querySelector('.kw-multi-input')?.value ?? '';
+      const delimiter     = block.querySelector('.kw-delim-radio:checked')?.value || 'tab';
+      const customPattern = block.querySelector('.kw-custom-pattern')?.value ?? '';
+      const secretCols     = Array.from(block.querySelectorAll('.kw-col-secret')).map(s => s.value === 'secret');
+      const parsedData = text.trim()
+        ? (delimiter === 'custom' ? Parser.parseCustom(text, customPattern) : Parser.parse(text, delimiter))
+        : null;
+      return { key, text, delimiter, customPattern, secretCols, parsedData };
+    });
   }
 
   function collectSinglesFrom(containerId) {
@@ -72,32 +98,7 @@ const UI = (() => {
   function renderDataset() {
     const ds = _datasets[_activeIdx];
 
-    // テーブルキー
-    const keyEl = document.getElementById('kw-multi-key');
-    if (keyEl) keyEl.value = ds.key;
-
-    // 区切り文字
-    const delimEl = document.querySelector(`input[name="kw-delim"][value="${ds.delimiter}"]`);
-    if (delimEl) delimEl.checked = true;
-    const customPatternEl = document.getElementById('kw-custom-pattern');
-    const customWrapEl = document.getElementById('kw-custom-pattern-wrap');
-    if (customPatternEl) customPatternEl.value = ds.customPattern ?? '';
-    if (customWrapEl) customWrapEl.style.display = ds.delimiter === 'custom' ? 'block' : 'none';
-
-    // テキストエリア
-    const textEl = document.getElementById('kw-multi-input');
-    if (textEl) textEl.value = ds.text;
-
-    // テーブルプレビュー
-    if (ds.parsedData && ds.parsedData.headers.length > 0) {
-      const sc = ds.secretCols.length === ds.parsedData.headers.length
-        ? ds.secretCols
-        : ds.parsedData.headers.map(() => true);
-      renderTable(ds.parsedData.headers, ds.parsedData.rows, sc);
-    } else {
-      const container = document.getElementById('kw-table-container');
-      if (container) container.innerHTML = '';
-    }
+    renderMultiBlocks();
 
     // サブ単一情報
     const subContainer = document.getElementById('kw-sub-singles-container');
@@ -121,11 +122,15 @@ const UI = (() => {
     saveCurrentToState();
     const prev = _datasets[_activeIdx];
     const inherited = {
-      ...createDataset(),
-      key:           prev?.key ?? '',
-      delimiter:     prev?.delimiter ?? 'tab',
-      customPattern: prev?.customPattern ?? '',
-      singles:       (prev?.singles ?? []).map(({ label, secret }) => ({ label, value: '', secret })),
+      tables: (prev?.tables ?? [createTable()]).map(t => ({
+        key:           t.key ?? '',
+        text:          '',
+        delimiter:     t.delimiter ?? 'tab',
+        customPattern: t.customPattern ?? '',
+        secretCols:    [],
+        parsedData:    null,
+      })),
+      singles: (prev?.singles ?? []).map(({ label, secret }) => ({ label, value: '', secret })),
     };
     _datasets.push(inherited);
     _activeIdx = _datasets.length - 1;
@@ -204,10 +209,127 @@ const UI = (() => {
   }
 
   // ----------------------------------------------------------------
+  // 複数情報（テーブル）ブロック管理
+  // ----------------------------------------------------------------
+
+  /** _datasets[_activeIdx].tables の内容で複数情報ブロック群を再描画 */
+  function renderMultiBlocks() {
+    const ds = _datasets[_activeIdx];
+    const container = document.getElementById('kw-multi-blocks-container');
+    if (!container) return;
+    if (ds.tables.length === 0) ds.tables.push(createTable());
+    container.innerHTML = '';
+    ds.tables.forEach((table, idx) => addTableBlock(table, idx, ds.tables.length));
+  }
+
+  /** 現在のデータセットにテーブルを1件追加する */
+  function addTableToCurrentDataset() {
+    saveCurrentToState();
+    const ds = _datasets[_activeIdx];
+    ds.tables.push(createTable());
+    renderMultiBlocks();
+    debouncedSave();
+  }
+
+  /** 複数情報ブロックを1件描画し、コンテナへ追加する */
+  function addTableBlock(table, idx, total) {
+    const container = document.getElementById('kw-multi-blocks-container');
+    if (!container) return;
+
+    const block = document.createElement('div');
+    block.className = 'kw-multi-block';
+    block.innerHTML = `
+      <div class="kw-multi-block-header">
+        <span class="kw-multi-block-label">テーブル名</span>
+        <input type="text" class="kw-multi-key" placeholder="テーブル名（例: 画面項目）" value="${escapeHtml(table.key)}">
+      </div>
+      <div class="kw-delimiter-row">
+        <span>区切り文字：</span>
+        <label><input type="radio" name="kw-delim-${idx}" class="kw-delim-radio" value="tab"> タブ</label>
+        <label><input type="radio" name="kw-delim-${idx}" class="kw-delim-radio" value="space"> スペース</label>
+        <label><input type="radio" name="kw-delim-${idx}" class="kw-delim-radio" value="comma"> カンマ</label>
+        <label><input type="radio" name="kw-delim-${idx}" class="kw-delim-radio" value="slash"> スラッシュ</label>
+        <label><input type="radio" name="kw-delim-${idx}" class="kw-delim-radio" value="custom"> カスタム</label>
+      </div>
+      <div class="kw-custom-pattern-wrap" style="display:none">
+        <textarea class="kw-custom-pattern" rows="3" placeholder="例: [[物理名]]:&#10;type: [[型]]&#10;description: [[論理名]]">${escapeHtml(table.customPattern ?? '')}</textarea>
+      </div>
+      <textarea class="kw-multi-input" rows="5" placeholder="1行目をヘッダー行として入力">${escapeHtml(table.text ?? '')}</textarea>
+      <div class="kw-table-scroll-wrapper"><div class="kw-table-container"></div></div>
+    `;
+
+    if (total > 1) {
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'kw-remove-btn';
+      removeBtn.title = '削除';
+      removeBtn.innerHTML = SVG_ICON_TRASH;
+      removeBtn.addEventListener('click', () => removeTableBlock(block));
+      block.querySelector('.kw-multi-block-header').appendChild(removeBtn);
+    }
+
+    const delimRadio = block.querySelector(`.kw-delim-radio[value="${table.delimiter || 'tab'}"]`);
+    if (delimRadio) delimRadio.checked = true;
+    block.querySelector('.kw-custom-pattern-wrap').style.display = table.delimiter === 'custom' ? 'block' : 'none';
+
+    const multiInput = block.querySelector('.kw-multi-input');
+    const customPatternEl = block.querySelector('.kw-custom-pattern');
+    const customWrapEl = block.querySelector('.kw-custom-pattern-wrap');
+    const tableContainer = block.querySelector('.kw-table-container');
+
+    function reparseCurrent(resetSecretCols = false) {
+      const delim = block.querySelector('.kw-delim-radio:checked')?.value || 'tab';
+      const text = multiInput.value;
+      const pattern = customPatternEl.value;
+      const parsed = delim === 'custom' ? Parser.parseCustom(text, pattern) : Parser.parse(text, delim);
+      if (!parsed) return;
+      const existing = Array.from(block.querySelectorAll('.kw-col-secret')).map(s => s.value === 'secret');
+      const sc = (!resetSecretCols && existing.length === parsed.headers.length)
+        ? existing
+        : parsed.headers.map(() => true);
+      renderTable(tableContainer, parsed.headers, parsed.rows, sc);
+    }
+
+    if (table.parsedData && table.parsedData.headers.length > 0) {
+      const sc = table.secretCols.length === table.parsedData.headers.length
+        ? table.secretCols
+        : table.parsedData.headers.map(() => true);
+      renderTable(tableContainer, table.parsedData.headers, table.parsedData.rows, sc);
+    }
+
+    multiInput.addEventListener('blur', () => { reparseCurrent(); debouncedSave(); });
+
+    block.querySelectorAll('.kw-delim-radio').forEach(radio => {
+      radio.addEventListener('change', () => {
+        const isCustom = radio.value === 'custom';
+        customWrapEl.style.display = isCustom ? 'block' : 'none';
+        if (!isCustom && multiInput.value.trim()) reparseCurrent(true);
+        debouncedSave();
+      });
+    });
+
+    customPatternEl.addEventListener('input', () => {
+      if (multiInput.value.trim()) reparseCurrent(true);
+      debouncedSave();
+    });
+
+    container.appendChild(block);
+  }
+
+  /** 複数情報ブロックを1件削除する */
+  function removeTableBlock(block) {
+    const ds = _datasets[_activeIdx];
+    if (ds.tables.length <= 1) { showStatus('最低1つのテーブルが必要です。', 'warn'); return; }
+    saveCurrentToState();
+    const idx = Array.from(block.parentElement.children).indexOf(block);
+    ds.tables.splice(idx, 1);
+    renderMultiBlocks();
+    debouncedSave();
+  }
+
+  // ----------------------------------------------------------------
   // テーブル描画
   // ----------------------------------------------------------------
-  function renderTable(headers, rows, secretCols) {
-    const container = document.getElementById('kw-table-container');
+  function renderTable(container, headers, rows, secretCols) {
     if (!container || !headers.length) { if (container) container.innerHTML = ''; return; }
     while (secretCols.length < headers.length) secretCols.push(true);
 
@@ -297,36 +419,37 @@ const UI = (() => {
           maskedValue: (secret && value.trim()) ? Masker.maskSingle(label, value) : value,
         }));
 
-      // テーブル
-      let maskedTable = null;
-      if (ds.parsedData && ds.parsedData.headers.length > 0) {
-        const { headers, rows } = ds.parsedData;
-        const sc = ds.secretCols.length === headers.length ? ds.secretCols : headers.map(() => true);
-        const secretColIndices = headers.map((_, i) => i).filter(i => sc[i] !== false);
+      // テーブル群
+      const maskedTables = ds.tables
+        .filter(t => t.parsedData && t.parsedData.headers.length > 0)
+        .map(t => {
+          const { headers, rows } = t.parsedData;
+          const sc = t.secretCols.length === headers.length ? t.secretCols : headers.map(() => true);
+          const secretColIndices = headers.map((_, i) => i).filter(i => sc[i] !== false);
 
-        const colPlaceholders = {};
-        secretColIndices.forEach((colIdx) => {
-          colGroupIdx++;
-          const cg = colGroupIdx;
-          colPlaceholders[colIdx] = rows.map((r, ri) => {
-            const k = `[[C${cg}_${String(ri + 1).padStart(2, '0')}]]`;
-            Masker.registerCustom(k, r[colIdx] ?? '');
-            return k;
+          const colPlaceholders = {};
+          secretColIndices.forEach((colIdx) => {
+            colGroupIdx++;
+            const cg = colGroupIdx;
+            colPlaceholders[colIdx] = rows.map((r, ri) => {
+              const k = `[[C${cg}_${String(ri + 1).padStart(2, '0')}]]`;
+              Masker.registerCustom(k, r[colIdx] ?? '');
+              return k;
+            });
           });
+
+          const maskedRows = rows.map((row, ri) =>
+            headers.map((_, ci) => {
+              if (sc[ci] === false) return row[ci] ?? '';
+              if (colPlaceholders[ci]) return colPlaceholders[ci][ri];
+              return row[ci] ?? '';
+            })
+          );
+
+          return { key: t.key || 'テーブル', maskedHeaders: headers, maskedRows };
         });
 
-        const maskedRows = rows.map((row) =>
-          headers.map((_, ci) => {
-            if (sc[ci] === false) return row[ci] ?? '';
-            if (colPlaceholders[ci]) return colPlaceholders[ci][rows.indexOf(row)];
-            return row[ci] ?? '';
-          })
-        );
-
-        maskedTable = { key: ds.key || 'テーブル', maskedHeaders: headers, maskedRows };
-      }
-
-      return { maskedSingles, maskedTable };
+      return { maskedSingles, maskedTables };
     });
 
     const prompt = PromptBuilder.build({ maskedMainSingles, maskedDatasets, language, targets, example });
@@ -453,7 +576,7 @@ const UI = (() => {
 
     const d = tmpl.data;
     _mainSingles = d.mainSingles ?? [];
-    _datasets    = d.datasets?.length > 0 ? d.datasets : [createDataset()];
+    _datasets    = (d.datasets?.length > 0 ? d.datasets : [createDataset()]).map(normalizeDataset);
     _activeIdx   = d.activeIdx ?? 0;
 
     // メイン単一情報を再描画
@@ -461,6 +584,19 @@ const UI = (() => {
     mainContainer.innerHTML = '';
     (_mainSingles.length > 0 ? _mainSingles : [{ label: '', value: '', secret: true }])
       .forEach(({ label, value, secret }) => addSingleRow('kw-main-singles-container', label, value, secret));
+
+    // 複数情報の解析
+    _datasets.forEach(ds => {
+      ds.tables.forEach(t => {
+        if (t.text && t.text.trim()) {
+          t.parsedData = t.delimiter === 'custom'
+            ? Parser.parseCustom(t.text, t.customPattern)
+            : Parser.parse(t.text, t.delimiter);
+        } else {
+          t.parsedData = null;
+        }
+      });
+    });
 
     // データセットを再描画
     renderDataset();
@@ -631,30 +767,9 @@ const UI = (() => {
           <section class="kw-section">
             <div class="kw-section-title">複数情報</div>
 
-            <!-- テーブルキー -->
-            <div class="kw-multi-block-header">
-              <span class="kw-multi-block-label">テーブル名</span>
-              <input type="text" id="kw-multi-key" placeholder="テーブル名（例: 画面項目）">
-            </div>
-
-            <!-- 区切り文字 -->
-            <div class="kw-delimiter-row">
-              <span>区切り文字：</span>
-              <label><input type="radio" name="kw-delim" value="tab" checked> タブ</label>
-              <label><input type="radio" name="kw-delim" value="space"> スペース</label>
-              <label><input type="radio" name="kw-delim" value="comma"> カンマ</label>
-              <label><input type="radio" name="kw-delim" value="slash"> スラッシュ</label>
-              <label><input type="radio" name="kw-delim" value="custom"> カスタム</label>
-            </div>
-            <div id="kw-custom-pattern-wrap" style="display:none">
-              <textarea id="kw-custom-pattern" rows="3" placeholder="例: [[物理名]]:&#10;type: [[型]]&#10;description: [[論理名]]"></textarea>
-            </div>
-
-            <!-- テキストエリア -->
-            <textarea id="kw-multi-input" rows="5" placeholder="1行目をヘッダー行として入力"></textarea>
-
-            <!-- テーブルプレビュー -->
-            <div class="kw-table-scroll-wrapper"><div id="kw-table-container"></div></div>
+            <!-- テーブルブロック群 -->
+            <div id="kw-multi-blocks-container"></div>
+            <button class="kw-add-btn" id="kw-add-multi-table">＋ テーブルを追加</button>
 
             <div class="kw-divider"></div>
 
@@ -730,7 +845,7 @@ const UI = (() => {
     );
 
     // データセット復元
-    _datasets  = saved?.datasets?.length > 0 ? saved.datasets : [createDataset()];
+    _datasets  = (saved?.datasets?.length > 0 ? saved.datasets : [createDataset()]).map(normalizeDataset);
     _activeIdx = saved?.activeIdx ?? 0;
     renderDataset();
 
@@ -956,43 +1071,7 @@ const UI = (() => {
     document.getElementById('kw-add-sub-single').addEventListener('click', () => {
       addSingleRow('kw-sub-singles-container', '', '', true); debouncedSave();
     });
-
-    // テキストエリア: フォーカスアウトでテーブル再描画
-    const multiInput = document.getElementById('kw-multi-input');
-
-    function reparseCurrent(resetSecretCols = false) {
-      const delim   = document.querySelector('input[name="kw-delim"]:checked')?.value || 'tab';
-      const text    = multiInput.value;
-      const pattern = document.getElementById('kw-custom-pattern')?.value ?? '';
-      const parsed  = delim === 'custom'
-        ? Parser.parseCustom(text, pattern)
-        : Parser.parse(text, delim);
-      if (!parsed) return;
-      const existing = Array.from(document.querySelectorAll('.kw-col-secret'))
-        .map(s => s.value === 'secret');
-      const sc = (!resetSecretCols && existing.length === parsed.headers.length)
-        ? existing
-        : parsed.headers.map(() => true);
-      renderTable(parsed.headers, parsed.rows, sc);
-    }
-
-    multiInput.addEventListener('blur', () => { reparseCurrent(); debouncedSave(); });
-
-    // 区切り文字変更
-    document.querySelectorAll('input[name="kw-delim"]').forEach(radio => {
-      radio.addEventListener('change', () => {
-        const isCustom = radio.value === 'custom';
-        document.getElementById('kw-custom-pattern-wrap').style.display = isCustom ? 'block' : 'none';
-        if (!isCustom && multiInput.value.trim()) reparseCurrent(true);
-        debouncedSave();
-      });
-    });
-
-    // カスタムパターン変更でテーブル再描画
-    document.getElementById('kw-custom-pattern').addEventListener('input', () => {
-      if (multiInput.value.trim()) reparseCurrent(true);
-      debouncedSave();
-    });
+    document.getElementById('kw-add-multi-table').addEventListener('click', addTableToCurrentDataset);
 
     document.getElementById('kw-add-target').addEventListener('click', () => { addTarget(); debouncedSave(); });
     document.getElementById('kw-mask-btn').addEventListener('click', handleMask);

@@ -7,7 +7,7 @@ const PromptBuilder = (() => {
    * @param {Array<{label, maskedValue}>} params.maskedMainSingles - 全データ共通の単一情報
    * @param {Array<{
    *   maskedSingles: Array<{label, maskedValue}>,
-   *   maskedTable:   {key, maskedHeaders, maskedRows} | null
+   *   maskedTables:  Array<{key, maskedHeaders, maskedRows}>
    * }>} params.maskedDatasets
    * @param {string}   params.language
    * @param {string[]} params.targets
@@ -37,7 +37,7 @@ const PromptBuilder = (() => {
 
     // 入力データ
     const validDatasets = maskedDatasets.filter(
-      ds => ds.maskedSingles.length > 0 || ds.maskedTable
+      ds => ds.maskedSingles.length > 0 || ds.maskedTables.length > 0
     );
 
     if (validDatasets.length > 0) {
@@ -55,13 +55,12 @@ const PromptBuilder = (() => {
           lines.push('');
         });
 
-        if (ds.maskedTable) {
-          const { key, maskedHeaders, maskedRows } = ds.maskedTable;
+        ds.maskedTables.forEach(({ key, maskedHeaders, maskedRows }) => {
           lines.push(`#### ${key}`);
           lines.push(maskedHeaders.join('\t'));
           maskedRows.forEach(row => lines.push(row.join('\t')));
           lines.push('');
-        }
+        });
       });
     }
 
@@ -75,9 +74,21 @@ const PromptBuilder = (() => {
     lines.push('- 使用できるケース修飾子: `[[UPPER_CAMEL]]` / `[[LOWER_CAMEL]]` / `[[UPPER_SNAKE]]` / `[[LOWER_SNAKE]]`');
     lines.push('- コメント・文字列リテラルなど、識別子でない箇所にはケース修飾子を付けないこと。');
     lines.push('');
+    lines.push('### ケース修飾子の付与ルール');
+    lines.push('プレースホルダーを識別子として使用する際は、');
+    lines.push('以下のルールに従い必ずケース修飾子を付加すること。');
+    lines.push('| 使用箇所 | 修飾子 | 例 |');
+    lines.push('|---------|--------|----|');
+    lines.push('| クラス名（Entity名など） | [[UPPER_CAMEL]] | [[C3_01]][[UPPER_CAMEL]]Entity |');
+    lines.push('| フィールド変数名 | [[LOWER_CAMEL]] | [[C1_01]][[LOWER_CAMEL]] |');
+    lines.push('| @Columnのname属性（物理名） | [[UPPER_SNAKE]] | [[C3_01]][[UPPER_SNAKE]] |');
+    lines.push('| メソッド引数名 | [[LOWER_CAMEL]] | [[C1_01]][[LOWER_CAMEL]] |');
+    lines.push('| getter呼び出し（先頭大文字） | [[UPPER_CAMEL]] | get[[C1_01]][[UPPER_CAMEL]]() |');
+    lines.push('');
     lines.push('### 出力形式規則');
     lines.push('- 出力はコードのみとすること。前置き・説明・補足・後置きは一切出力しないこと。');
     lines.push('- ソースコード内に「データ1」「データ2」等の文言を含めないこと。');
+    lines.push('- 改行コードには、CR+LFを用いること。');
     lines.push('');
 
     // 出力例
