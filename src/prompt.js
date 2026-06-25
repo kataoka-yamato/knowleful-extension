@@ -88,7 +88,6 @@ const PromptBuilder = (() => {
     lines.push('### 出力形式規則');
     lines.push('- 出力はコードのみとすること。前置き・説明・補足・後置きは一切出力しないこと。');
     lines.push('- ソースコード内に「データ1」「データ2」等の文言を含めないこと。');
-    lines.push('- 改行コードには、CR+LFを用いること。');
     lines.push('');
 
     // 出力例

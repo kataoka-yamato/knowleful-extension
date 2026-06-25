@@ -13,7 +13,13 @@
   ],
   "content_scripts": [
     {
-      "matches": ["https://chat.knowleful.jp/*"],
+      "matches": [
+        "https://chat.knowleful.jp/*",
+        "https://claude.ai/*",
+        "https://chatgpt.com/*",
+        "https://gemini.google.com/*"
+
+      ],
       "js": [
         "src/storage.js",
         "src/formatter.js",

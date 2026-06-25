@@ -22,13 +22,62 @@ const UI = (() => {
   let _activeIdx = 0;
   let _saveTimer = null;
 
+  const DEFAULT_GENERATE_LANGUAGE = ''; // 例: Java/Spring Boot
+  const DEFAULT_GENERATE_TARGET = ['']; // 例：['Entity', 'Dao', 'Repository', 'Service']
+
   const STORAGE_KEY   = 'kw_tool_state_v3';
   const TEMPLATE_KEY  = 'kw_templates';
 
   const SVG_ICON_TRASH = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hover:opacity-50" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="radix-_r_1fh_" data-state="closed"><path d="M4 7l16 0"></path><path d="M10 11l0 6"></path><path d="M14 11l0 6"></path><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"></path><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"></path></svg>'
 
-  const DEFAULT_GENERATE_LANGUAGE = ''; // 例: Java/Spring Boot
-  const DEFAULT_GENERATE_TARGET = ['']; // 例：['Entity', 'Dao', 'Repository', 'Service']
+  const MULTI_INPUT_PLACEHOLDER_DEFAULT = '1行目をヘッダー行として入力';
+  const MULTI_INPUT_PLACEHOLDER_CUSTOM  = 'カスタムパターンに一致するデータを入力';
+
+  // 対象AIツール一覧
+  const AI_TOOL = {
+    KNOWLEFUL:  'KNOWLEFUL',
+    CHATGPT:    'CHATGPT',
+    CLAUDE:     'CLAUDE',
+    GEMINI:     'GEMINI'
+  };
+
+  // AIツールのベースURL
+  const BASE_URL = {
+    [AI_TOOL.KNOWLEFUL]:  'https://chat.knowleful.jp/',
+    [AI_TOOL.CHATGPT]:    'https://chatgpt.com/',
+    [AI_TOOL.CLAUDE]:     'https://claude.ai/',
+    [AI_TOOL.GEMINI]:     'https://gemini.google.com/',
+  };
+
+  // マスキング転記（チャット入力欄）／アンマスキング（最新回答取得）に使うDOM構造
+  // chatInput: 入力欄のセレクター、chatAnswer: 最新回答を取得するセレクター
+  const DOM_SELECTORS = {
+    [AI_TOOL.KNOWLEFUL]: {
+      chatInput:  '#chat-input',
+      chatAnswer: 'div.prose',
+    },
+    [AI_TOOL.CHATGPT]: {
+      chatInput:  '#prompt-textarea',
+      chatAnswer: 'div[data-message-author-role="assistant"]',
+    },
+    [AI_TOOL.CLAUDE]: {
+      chatInput:  'div.ProseMirror[contenteditable="true"]',
+      chatAnswer: 'div.standard-markdown',
+    },
+    [AI_TOOL.GEMINI]: {
+      chatInput:  'div.ql-editor[contenteditable="true"]',
+      chatAnswer: 'message-content .markdown',
+    },
+  };
+
+  /** 現在のURL（ホスト名）から対象AIツールを判定する。一致しない場合はKNOWLEFULにフォールバック */
+  function getCurrentAiTool() {
+    const hostname = location.hostname;
+    return Object.keys(BASE_URL).find(tool => {
+      try { return new URL(BASE_URL[tool]).hostname === hostname; } catch { return false; }
+    }) || AI_TOOL.KNOWLEFUL;
+  }
+
 
   // ----------------------------------------------------------------
   // データセット管理
@@ -252,9 +301,9 @@ const UI = (() => {
         <label><input type="radio" name="kw-delim-${idx}" class="kw-delim-radio" value="custom"> カスタム</label>
       </div>
       <div class="kw-custom-pattern-wrap" style="display:none">
-        <textarea class="kw-custom-pattern" rows="3" placeholder="例: [[物理名]]:&#10;type: [[型]]&#10;description: [[論理名]]">${escapeHtml(table.customPattern ?? '')}</textarea>
+        <textarea class="kw-custom-pattern" rows="4" placeholder="カスタムパターンを入力&#10;例: [[物理名]]:&#10;type: [[型]]&#10;description: [[論理名]]">${escapeHtml(table.customPattern ?? '')}</textarea>
       </div>
-      <textarea class="kw-multi-input" rows="5" placeholder="1行目をヘッダー行として入力">${escapeHtml(table.text ?? '')}</textarea>
+      <textarea class="kw-multi-input" rows="5" placeholder="${table.delimiter === 'custom' ? MULTI_INPUT_PLACEHOLDER_CUSTOM : MULTI_INPUT_PLACEHOLDER_DEFAULT}">${escapeHtml(table.text ?? '')}</textarea>
       <div class="kw-table-scroll-wrapper"><div class="kw-table-container"></div></div>
     `;
 
@@ -302,6 +351,7 @@ const UI = (() => {
       radio.addEventListener('change', () => {
         const isCustom = radio.value === 'custom';
         customWrapEl.style.display = isCustom ? 'block' : 'none';
+        multiInput.placeholder = isCustom ? MULTI_INPUT_PLACEHOLDER_CUSTOM : MULTI_INPUT_PLACEHOLDER_DEFAULT;
         if (!isCustom && multiInput.value.trim()) reparseCurrent(true);
         debouncedSave();
       });
@@ -482,11 +532,8 @@ const UI = (() => {
   // チャットUI操作ヘルパー
   // ----------------------------------------------------------------
   function findChatInput() {
-    for (const sel of ['textarea[placeholder]', 'div[contenteditable="true"]', 'textarea']) {
-      const el = document.querySelector(sel);
-      if (el) return el;
-    }
-    return null;
+    const { chatInput } = DOM_SELECTORS[getCurrentAiTool()];
+    return document.querySelector(chatInput);
   }
 
   function setInputValue(el, text) {
@@ -497,15 +544,18 @@ const UI = (() => {
       el.dispatchEvent(new Event('input', { bubbles: true }));
       el.dispatchEvent(new Event('change', { bubbles: true }));
     } else if (el.contentEditable === 'true') {
-      el.innerText = text;
+      // ProseMirror/Tiptap系エディタは改行を<br>ではなく行ごとの<p>として扱うため、
+      // innerTextではなく1行=1<p>のHTMLを組み立てて反映する
+      el.innerHTML = text.split('\n').map(line => `<p>${escapeHtml(line) || '<br>'}</p>`).join('');
       el.dispatchEvent(new Event('input', { bubbles: true }));
     }
     el.focus();
   }
 
   function getLatestChatAnswer() {
-    const proseEls = document.querySelectorAll('div.prose');
-    return proseEls.length > 0 ? proseEls[proseEls.length - 1].innerText : null;
+    const { chatAnswer } = DOM_SELECTORS[getCurrentAiTool()];
+    const answerEls = document.querySelectorAll(chatAnswer);
+    return answerEls.length > 0 ? answerEls[answerEls.length - 1].innerText : null;
   }
 
   // ----------------------------------------------------------------
