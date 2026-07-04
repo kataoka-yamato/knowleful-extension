@@ -27,6 +27,11 @@ const UI = (() => {
 
   const STORAGE_KEY   = 'kw_tool_state_v3';
   const TEMPLATE_KEY  = 'kw_templates';
+  const SETTINGS_KEY  = 'kw_settings';
+
+  const DEFAULT_SETTINGS = { loopOutput: true };
+  let _settings = { ...DEFAULT_SETTINGS };
+  let _activeMainTab = 'mask'; // 設定タブ表示前にいた「マスキング／アンマスキング」「質問」のどちらか
 
   const SVG_ICON_TRASH = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hover:opacity-50" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="radix-_r_1fh_" data-state="closed"><path d="M4 7l16 0"></path><path d="M10 11l0 6"></path><path d="M14 11l0 6"></path><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"></path><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"></path></svg>'
 
@@ -69,6 +74,23 @@ const UI = (() => {
       chatAnswer: 'message-content .markdown',
     },
   };
+
+  // AIへ質問形式での確認を促すプロンプト指示文
+  const QUESTION_PROMPT_SNIPPET =
+`仕様に不明点がある場合は、実装・出力前に必ず次の形式で質問してください。
+- 選択肢は2つ以上提示し、1つ目を推奨案とすること
+- 質問が複数ある場合はQ1, Q2, ...と連番を振ること
+- 選択肢のタイトルは簡潔に、説明はその選択肢を選んだ場合の要点のみを1文で記載すること
+
+## 質問形式
+[[Q<連番>, "<質問内容>", { ["<推奨する回答のタイトル>", "<推奨する回答の説明>"], ["<他の回答のタイトル>", "<他の回答の説明>"] }]]
+
+例:
+[[Q1, "認証方式はどれを採用しますか？", {
+["JWT", "ステートレスでスケールしやすいが、失効管理は別途必要。"],
+["セッションCookie", "実装はシンプルだが、サーバー側での状態管理が必要。"]
+}]]
+---`;
 
   /** 現在のURL（ホスト名）から対象AIツールを判定する。一致しない場合はKNOWLEFULにフォールバック */
   function getCurrentAiTool() {
@@ -502,7 +524,10 @@ const UI = (() => {
       return { maskedSingles, maskedTables };
     });
 
-    const prompt = PromptBuilder.build({ maskedMainSingles, maskedDatasets, language, targets, example });
+    const prompt = PromptBuilder.build({
+      maskedMainSingles, maskedDatasets, language, targets, example,
+      loopEnabled: _settings.loopOutput,
+    });
 
     const chatInput = findChatInput();
     if (chatInput) {
@@ -526,6 +551,173 @@ const UI = (() => {
     document.getElementById('kw-output').value = Masker.unmask(latestAnswer);
     clearMaskingPending();
     showStatus('復元完了しました。', 'success');
+  }
+
+  // ----------------------------------------------------------------
+  // 質問タブ
+  // ----------------------------------------------------------------
+
+  /** チャット入力欄の現在のテキストを取得する */
+  function getInputText(el) {
+    if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') return el.value;
+    if (el.contentEditable === 'true') return el.innerText;
+    return '';
+  }
+
+  function unescapeQuoted(str) {
+    return str.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+  }
+
+  /** AIの回答テキストから質問形式（[[QX, "質問", { ["タイトル","説明"], ... }]]）を抽出する */
+  function parseQuestions(text) {
+    if (!text) return [];
+    const questions = [];
+    const qRe = /\[\[\s*([A-Za-z0-9_]+)\s*,\s*"((?:[^"\\]|\\.)*)"\s*,\s*\{([\s\S]*?)\}\s*\]\]/g;
+    let qm;
+    while ((qm = qRe.exec(text)) !== null) {
+      const [, id, rawText, optionsBlock] = qm;
+      const options = [];
+      const optRe = /\[\s*"((?:[^"\\]|\\.)*)"\s*,\s*"((?:[^"\\]|\\.)*)"\s*\]/g;
+      let om;
+      while ((om = optRe.exec(optionsBlock)) !== null) {
+        options.push({ title: unescapeQuoted(om[1]), desc: unescapeQuoted(om[2]) });
+      }
+      if (options.length > 0) questions.push({ id, text: unescapeQuoted(rawText), options });
+    }
+    return questions;
+  }
+
+  /** 抽出した質問をラジオボタン形式でツールのカード部に描画する（「その他」を末尾に追加） */
+  function renderQuestionList(questions) {
+    const container = document.getElementById('kw-question-list');
+    if (!container) return;
+
+    if (questions.length === 0) {
+      container.innerHTML = '<p class="kw-tmpl-empty">質問形式に合致するデータが見つかりませんでした。</p>';
+      return;
+    }
+
+    container.innerHTML = questions.map((q, qi) => `
+      <div class="kw-question-block" data-qid="${escapeHtml(q.id)}">
+        <div class="kw-question-text">${escapeHtml(q.id)}: ${escapeHtml(q.text)}</div>
+        <div class="kw-question-options">
+          ${q.options.map((opt, oi) => `
+            <label class="kw-question-option">
+              <input type="radio" name="kw-q-${qi}" value="${escapeHtml(opt.title)}">
+              <span class="kw-question-option-body">
+                <span class="kw-question-option-title">${oi === 0 ? '【推奨】' : ''}${escapeHtml(opt.title)}</span>
+                <span class="kw-question-option-desc">${escapeHtml(opt.desc)}</span>
+              </span>
+            </label>
+          `).join('')}
+          <label class="kw-question-option kw-question-option-other">
+            <input type="radio" name="kw-q-${qi}" class="kw-question-other-radio" value="__other__">
+            <span class="kw-question-option-body">
+              <span class="kw-question-option-title">その他</span>
+              <input type="text" class="kw-question-other-input" placeholder="回答を入力してください">
+            </span>
+          </label>
+        </div>
+      </div>
+    `).join('');
+
+    // 「その他」の入力欄に文字が入力されたら自動で対応するラジオボタンを選択する
+    container.querySelectorAll('.kw-question-other-input').forEach(input => {
+      input.addEventListener('input', () => {
+        if (!input.value.trim()) return;
+        input.closest('.kw-question-option-other').querySelector('.kw-question-other-radio').checked = true;
+      });
+    });
+  }
+
+  /** チャット入力欄先頭に質問形式の指示文を追加する（既に追加済みなら何もしない） */
+  function handlePromptAppend() {
+    const chatInput = findChatInput();
+    if (!chatInput) { showStatus('チャット入力欄が見つかりませんでした。', 'error'); return; }
+
+    const currentText = getInputText(chatInput);
+    if (currentText.includes('## 質問形式')) {
+      showStatus('すでにプロンプトに追加済みです。', 'info');
+      return;
+    }
+
+    const newText = currentText.trim()
+      ? `${QUESTION_PROMPT_SNIPPET}\n\n${currentText}`
+      : QUESTION_PROMPT_SNIPPET;
+    setInputValue(chatInput, newText);
+    showStatus('プロンプトに追加しました。', 'success');
+  }
+
+  /** AIの最新回答から質問を抽出して表示する（抽出結果は毎回上書き） */
+  function handleQuestionExtract() {
+    const latestAnswer = getLatestChatAnswer();
+    if (!latestAnswer) { showStatus('チャットの回答が見つかりませんでした。', 'error'); return; }
+
+    const questions = parseQuestions(latestAnswer);
+    renderQuestionList(questions);
+    if (questions.length === 0) {
+      showStatus('質問形式に合致するデータが見つかりませんでした。', 'warn');
+    } else {
+      showStatus(`${questions.length}件の質問を抽出しました。`, 'success');
+    }
+  }
+
+  /** 選択された回答をAIが理解しやすい形式に変換し、チャット入力欄に上書きする */
+  function handleQuestionAnswer() {
+    const blocks = Array.from(document.querySelectorAll('#kw-question-list .kw-question-block'));
+    if (blocks.length === 0) { showStatus('先に質問を抽出してください。', 'warn'); return; }
+
+    const lines = [];
+    blocks.forEach(block => {
+      const checked = block.querySelector('input[type="radio"]:checked');
+      if (!checked) return;
+      let answer;
+      if (checked.value === '__other__') {
+        answer = block.querySelector('.kw-question-other-input').value.trim();
+        if (!answer) return;
+      } else {
+        answer = checked.value;
+      }
+      lines.push(`${block.dataset.qid}: ${answer}`);
+    });
+
+    if (lines.length === 0) { showStatus('回答が選択されていません。', 'warn'); return; }
+
+    const chatInput = findChatInput();
+    if (!chatInput) { showStatus('チャット入力欄が見つかりませんでした。', 'error'); return; }
+    setInputValue(chatInput, lines.join('\n'));
+    showStatus('回答をチャット入力欄に貼り付けました。', 'success');
+    hide();
+  }
+
+  /** タブ切り替え（マスキング／アンマスキング ⇔ 質問 ⇔ 設定） */
+  function switchTab(tab) {
+    if (tab === 'mask' || tab === 'question') _activeMainTab = tab;
+    const isMask = tab === 'mask';
+
+    document.getElementById('kw-tab-panel-mask').style.display     = tab === 'mask'     ? 'flex' : 'none';
+    document.getElementById('kw-tab-panel-question').style.display = tab === 'question' ? 'flex' : 'none';
+    document.getElementById('kw-tab-panel-settings').style.display = tab === 'settings' ? 'flex' : 'none';
+
+    // テンプレートはマスキングタブ以外では無関係のため非表示にする
+    document.getElementById('kw-template-toggle-btn').style.display = isMask ? '' : 'none';
+    if (!isMask) document.getElementById('kw-template-bar').style.display = 'none';
+
+    document.querySelectorAll('.kw-tab-btn').forEach(btn => {
+      btn.classList.toggle('kw-tab-active', btn.dataset.tab === tab);
+    });
+    document.getElementById('kw-settings-toggle-btn').classList.toggle('kw-header-btn-active', tab === 'settings');
+  }
+
+  // ----------------------------------------------------------------
+  // 設定
+  // ----------------------------------------------------------------
+  async function loadSettings() {
+    return await Storage.getItem(SETTINGS_KEY, DEFAULT_SETTINGS);
+  }
+
+  async function saveSettings() {
+    await Storage.setItem(SETTINGS_KEY, _settings);
   }
 
   // ----------------------------------------------------------------
@@ -757,8 +949,13 @@ const UI = (() => {
       <div id="kw-modal-inner">
         <div id="kw-modal-header">
           <span>コード生成支援ツール</span>
+          <div class="kw-tab-switcher">
+            <button class="kw-tab-btn kw-tab-active" data-tab="mask">マスキング／アンマスキング</button>
+            <button class="kw-tab-btn" data-tab="question">質問</button>
+          </div>
           <div class="kw-header-actions">
             <button id="kw-template-toggle-btn" title="テンプレート">📋 テンプレート</button>
+            <button id="kw-settings-toggle-btn" title="設定">⚙ 設定</button>
             <button id="kw-close-btn" title="閉じる">×</button>
           </div>
         </div>
@@ -805,6 +1002,7 @@ const UI = (() => {
           </div>
         </div>
         <div id="kw-modal-body">
+        <div id="kw-tab-panel-mask" class="kw-tab-panel">
 
           <!-- メイン単一情報 -->
           <section class="kw-section">
@@ -869,6 +1067,48 @@ const UI = (() => {
             </div>
             <div id="kw-status" class="kw-status"></div>
           </section>
+
+        </div>
+
+        <!-- 質問タブ -->
+        <div id="kw-tab-panel-question" class="kw-tab-panel" style="display:none">
+          <section class="kw-section">
+            <div class="kw-section-title">プロンプトへの質問指示追加</div>
+            <div class="kw-question-desc">AIに対し、不明点があれば質問するよう指示する文言をチャット入力欄の先頭に追加します。</div>
+            <button class="kw-secondary-btn" id="kw-prompt-append-btn">プロンプトに追加</button>
+          </section>
+
+          <section class="kw-section">
+            <div class="kw-section-title">質問抽出</div>
+            <div class="kw-question-desc">AIの最新の回答から質問形式に合致する質問を抽出し、選択肢として表示します。</div>
+            <button class="kw-secondary-btn" id="kw-question-extract-btn">質問抽出</button>
+            <div id="kw-question-list" class="kw-question-list"></div>
+          </section>
+
+          <section class="kw-section kw-btn-section">
+            <button class="kw-primary-btn" id="kw-question-answer-btn">回答を貼り付け</button>
+          </section>
+        </div>
+
+        <!-- 設定タブ -->
+        <div id="kw-tab-panel-settings" class="kw-tab-panel" style="display:none">
+          <section class="kw-section">
+            <div class="kw-section-title">マスキング／アンマスキング</div>
+            <div class="kw-setting-row">
+              <div class="kw-setting-label">ループ出力を行う</div>
+              <div class="kw-setting-desc">繰り返し同じパターンが出力される場合、ループ表記にしてコンテキスト・時間を節約します。低モデルでは、うまく解釈されないことがあります。</div>
+              <div class="kw-setting-options">
+                <label><input type="radio" name="kw-setting-loop-output" value="yes"> Yes</label>
+                <label><input type="radio" name="kw-setting-loop-output" value="no"> No</label>
+              </div>
+            </div>
+          </section>
+
+          <section class="kw-section">
+            <div class="kw-section-title">質問</div>
+            <div class="kw-setting-empty">設定項目はまだありません。</div>
+          </section>
+        </div>
 
         </div>
       </div>
@@ -1126,6 +1366,32 @@ const UI = (() => {
     document.getElementById('kw-add-target').addEventListener('click', () => { addTarget(); debouncedSave(); });
     document.getElementById('kw-mask-btn').addEventListener('click', handleMask);
     document.getElementById('kw-unmask-btn').addEventListener('click', handleUnmask);
+
+    // タブ切り替え
+    document.querySelectorAll('.kw-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
+    // 質問タブ
+    document.getElementById('kw-prompt-append-btn').addEventListener('click', handlePromptAppend);
+    document.getElementById('kw-question-extract-btn').addEventListener('click', handleQuestionExtract);
+    document.getElementById('kw-question-answer-btn').addEventListener('click', handleQuestionAnswer);
+
+    // 設定タブ（トグル。開いている場合はマスキング／質問タブのうち直前に表示していた方に戻る）
+    document.getElementById('kw-settings-toggle-btn').addEventListener('click', () => {
+      const isOpen = document.getElementById('kw-tab-panel-settings').style.display !== 'none';
+      switchTab(isOpen ? _activeMainTab : 'settings');
+    });
+
+    // 設定：ループ出力設定を読み込んで反映
+    _settings = await loadSettings();
+    document.querySelectorAll('input[name="kw-setting-loop-output"]').forEach(radio => {
+      radio.checked = (radio.value === 'yes') === _settings.loopOutput;
+      radio.addEventListener('change', () => {
+        _settings.loopOutput = document.querySelector('input[name="kw-setting-loop-output"]:checked').value === 'yes';
+        saveSettings();
+      });
+    });
 
     document.getElementById('kw-copy-btn').addEventListener('click', () => {
       const text = document.getElementById('kw-output').value;

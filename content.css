@@ -51,8 +51,8 @@
 /* ヘッダー */
 #kw-modal-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 16px;
   padding: 12px 18px;
   background: #1a56db;
   color: #fff;
@@ -78,6 +78,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-left: auto;
 }
 #kw-template-toggle-btn {
   padding: 4px 12px;
@@ -89,6 +90,124 @@
   cursor: pointer;
 }
 #kw-template-toggle-btn:hover { background: rgba(255,255,255,0.25); }
+
+#kw-settings-toggle-btn {
+  padding: 4px 12px;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.4);
+  color: #fff;
+  border-radius: 5px;
+  font-size: 12px;
+  cursor: pointer;
+}
+#kw-settings-toggle-btn:hover { background: rgba(255,255,255,0.25); }
+#kw-settings-toggle-btn.kw-header-btn-active {
+  background: #fff;
+  color: #1a56db;
+}
+
+/* タブ切り替え */
+.kw-tab-switcher {
+  display: flex;
+  gap: 4px;
+}
+.kw-tab-btn {
+  padding: 5px 14px;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: #fff;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.kw-tab-btn:hover { background: rgba(255,255,255,0.22); }
+.kw-tab-btn.kw-tab-active {
+  background: #fff;
+  color: #1a56db;
+}
+
+/* タブパネル */
+.kw-tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* 質問タブ */
+.kw-question-desc {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-bottom: 8px;
+}
+.kw-question-list {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.kw-question-block {
+  border: 1px solid #e5e7eb;
+  border-radius: 7px;
+  padding: 10px 12px;
+  background: #fafafa;
+}
+.kw-question-text {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 8px;
+  color: #1f2937;
+}
+.kw-question-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.kw-question-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.kw-question-option:hover { background: #f3f4f6; }
+.kw-question-option input[type="radio"] { margin-top: 3px; flex-shrink: 0; }
+.kw-question-option-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+.kw-question-option-title { font-size: 13px; font-weight: 600; color: #374151; }
+.kw-question-option-desc { font-size: 11px; color: #6b7280; }
+.kw-question-other-input {
+  margin-top: 4px;
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  font-size: 12px;
+  width: 100%;
+  max-width: 320px;
+  box-sizing: border-box;
+}
+
+/* 設定タブ */
+.kw-setting-row { display: flex; flex-direction: column; gap: 6px; }
+.kw-setting-label { font-size: 13px; font-weight: 600; color: #374151; }
+.kw-setting-desc { font-size: 11px; color: #6b7280; }
+.kw-setting-options { display: flex; gap: 16px; margin-top: 2px; }
+.kw-setting-options label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: #374151;
+  cursor: pointer;
+}
+.kw-setting-empty { font-size: 12px; color: #9ca3af; }
 
 /* テンプレートバー */
 #kw-template-bar {

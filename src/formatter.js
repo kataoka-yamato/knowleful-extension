@@ -45,16 +45,16 @@ const Formatter = (() => {
 
   /**
    * @param {string} value - 元の値（例: "user_id"）
-   * @param {string|null} modifier - ケース修飾子（例: "UPPER_CAMEL"）
+   * @param {string|null} modifier - ケース修飾子コード（"UC" / "LC" / "US" / "LS"）
    * @returns {string}
    */
   function apply(value, modifier) {
     switch (modifier) {
-      case 'UPPER_CAMEL': return toUpperCamel(value);
-      case 'LOWER_CAMEL': return toLowerCamel(value);
-      case 'UPPER_SNAKE': return toUpperSnake(value);
-      case 'LOWER_SNAKE': return toLowerSnake(value);
-      default:            return value;
+      case 'UC': return toUpperCamel(value);
+      case 'LC': return toLowerCamel(value);
+      case 'US': return toUpperSnake(value);
+      case 'LS': return toLowerSnake(value);
+      default:   return value;
     }
   }
 
